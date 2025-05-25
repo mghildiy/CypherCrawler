@@ -1,0 +1,24 @@
+<configuration>
+    <!-- Console appender -->
+    <appender name="stdout" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <!-- Pattern of log message for console appender -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5p %m%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- File appender -->
+    <appender name="fout" class="ch.qos.logback.core.FileAppender">
+        <file>logs/cyphercrawler.log</file>
+        <append>true</append>
+        <encoder>
+            <!-- Pattern of log message for file appender -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5p %m%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="stdout" />
+        <appender-ref ref="fout" />
+    </root>
+</configuration>
