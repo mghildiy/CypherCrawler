@@ -93,7 +93,11 @@ public class Crawler {
             String text = extractText(doc);
             List<Token> tokens = extractTokens(text);
             // TODO: stemming
-            updateIndex(tokens, url, tokenByDocs);
+            List<Token> stemmedTokens = tokens.stream()
+                    .map(token -> new Token(stem(token.key())))
+                    .distinct()
+                    .toList();
+            updateIndex(stemmedTokens, url, tokenByDocs);
             activeDocumentProcessingCounter.decrementAndGet();
         });
     }

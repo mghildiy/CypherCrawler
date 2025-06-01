@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import org. slf4j.Logger;
+import org.tartarus.snowball.ext.EnglishStemmer;
 
 public class Utils {
 
@@ -65,5 +66,15 @@ public class Utils {
         } catch (IOException e) {
             LOGGER.error("Failed to write inverted index to file", e);
         }
+    }
+
+    public static String stem(String word) {
+        EnglishStemmer stemmer = new EnglishStemmer();
+        stemmer.setCurrent(word);
+        if (stemmer.stem()) {
+            return stemmer.getCurrent();
+        }
+
+        return word;
     }
 }
