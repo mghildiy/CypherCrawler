@@ -138,7 +138,7 @@ public class Crawler {
 
         // launch virtual threads to fetch documents
         ExecutorService ioExecutor = Executors.newVirtualThreadPerTaskExecutor();
-        int numFetcherThreads = Integer.valueOf(Optional.ofNullable(System.getenv("NUM_FETCHER_THREADS"))
+        int numFetcherThreads = Integer.parseInt(Optional.ofNullable(System.getenv("NUM_FETCHER_THREADS"))
                 .orElse("10"));
         for(int i = 0; i < numFetcherThreads; i++) {
             ioExecutor.submit(ioTaskToFetchDocument);
@@ -164,8 +164,9 @@ public class Crawler {
 
         ioExecutor.shutdown();
         cpuExecutor.shutdown();
+        // TODO: replace this with Future.get API for better control over time
         try {
-            int waitTimeForTermination = Integer.valueOf(Optional.ofNullable(System.getenv("WAIT_TIME_TERMINATION"))
+            int waitTimeForTermination = Integer.parseInt(Optional.ofNullable(System.getenv("WAIT_TIME_TERMINATION"))
                     .orElse("10"));
             if(!ioExecutor.awaitTermination(waitTimeForTermination, TimeUnit.SECONDS)) {
                 ioExecutor.shutdownNow();
