@@ -4,6 +4,8 @@ package com.cypherlabs.crawler;
 import org.jsoup.nodes.Document;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -18,7 +20,7 @@ public class Crawler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Crawler.class);
 
-    private final List<Url> seedUrls = new ArrayList<>();
+    private final List<Url> seedUrls;
     private final Map<Token, Set<Url>> tokenByDocs = new ConcurrentHashMap<>();
     private final Set<Url> alreadyVisited = ConcurrentHashMap.newKeySet();
     private final Map<Url, Integer> urlByRetryCount = new HashMap<>();
@@ -29,8 +31,16 @@ public class Crawler {
     private final AtomicInteger activeDocumentProcessingCounter = new AtomicInteger();
 
     public static void main(String[] args) {
-        Crawler crawler = new Crawler();
+        Crawler crawler = new Crawler(Utils.seedUrls());
         crawler.crawl();
+    }
+
+    public Crawler(List<Url> seedurls) {
+        this.seedUrls = seedurls;
+    }
+
+    public Map<Token, Set<Url>> getTokenByDocs() {
+        return this.tokenByDocs;
     }
 
     private void waitForUrlAndThenProcess() {
@@ -44,15 +54,18 @@ public class Crawler {
                 return;
             }
             activeDocumentFetchingCounter.incrementAndGet();
+            LOGGER.debug("Number of documents under fetching: {}", activeDocumentFetchingCounter.get());
             LOGGER.info("Starting to fetch document for url {}", url.address());
             doc = fetchDocument(url);
             LOGGER.info("Done fetching document for url {}", url.address());
             activeDocumentFetchingCounter.decrementAndGet();
+            LOGGER.debug("Number of documents under fetching: {}", activeDocumentFetchingCounter.get());
             // we wait for space to be available
             docAndUrlPairs.put(new DocumentWithUrl(doc, url));
             alreadyVisited.add(url);
         } catch(IOException ioe) {
             activeDocumentFetchingCounter.decrementAndGet();
+            LOGGER.debug("Number of documents under fetching: {}", activeDocumentFetchingCounter.get());
             LOGGER.error("Crawler failed to fetch document for url: {}", url.address());
             LOGGER.error(ioe.getMessage());
             urlByRetryCount.put(url, urlByRetryCount.getOrDefault(url, 0) + 1);
@@ -82,6 +95,7 @@ public class Crawler {
         Optional<DocumentWithUrl> mayBeDocument = Optional.ofNullable(docAndUrlPairs.poll());
         mayBeDocument.ifPresent(docAndUrlPair -> {
             activeDocumentProcessingCounter.incrementAndGet();
+            LOGGER.debug("Number of documents under processing: {}", activeDocumentProcessingCounter.get());
             Document doc = docAndUrlPair.doc();
             Url url = docAndUrlPair.url();
             LOGGER.info("Starting to process document for url {}", url.address());
@@ -91,21 +105,22 @@ public class Crawler {
                 updateCrawlFrontier(u);
             }
             String text = extractText(doc);
+            LOGGER.debug("Extracted text from {} is: {}", url.address(), text);
             List<Token> tokens = extractTokens(text);
-            // TODO: stemming
+
+            // stemming
             List<Token> stemmedTokens = tokens.stream()
                     .map(token -> new Token(stem(token.key())))
                     .distinct()
                     .toList();
             updateIndex(stemmedTokens, url, tokenByDocs);
             activeDocumentProcessingCounter.decrementAndGet();
+            LOGGER.debug("Number of documents under processing: {}", activeDocumentProcessingCounter.get());
         });
     }
 
     void crawl() {
         LOGGER.info("Crawler starting to crawl....");
-
-        seedUrls.add(new Url("https://quotes.toscrape.com/"));
 
         Runnable ioTaskToFetchDocument = () -> {
             while(!Thread.currentThread().isInterrupted()) {
@@ -123,7 +138,9 @@ public class Crawler {
 
         // launch virtual threads to fetch documents
         ExecutorService ioExecutor = Executors.newVirtualThreadPerTaskExecutor();
-        for(int i=0; i<1000; i++) {
+        int numFetcherThreads = Integer.valueOf(Optional.ofNullable(System.getenv("NUM_FETCHER_THREADS"))
+                .orElse("10"));
+        for(int i = 0; i < numFetcherThreads; i++) {
             ioExecutor.submit(ioTaskToFetchDocument);
         }
 
@@ -143,14 +160,17 @@ public class Crawler {
 
             if (done) break;
         }
+        LOGGER.debug("Work completed....");
 
         ioExecutor.shutdown();
         cpuExecutor.shutdown();
         try {
-            if(!ioExecutor.awaitTermination(120, TimeUnit.SECONDS)) {
+            int waitTimeForTermination = Integer.valueOf(Optional.ofNullable(System.getenv("WAIT_TIME_TERMINATION"))
+                    .orElse("10"));
+            if(!ioExecutor.awaitTermination(waitTimeForTermination, TimeUnit.SECONDS)) {
                 ioExecutor.shutdownNow();
             }
-            if(!cpuExecutor.awaitTermination(120, TimeUnit.SECONDS)) {
+            if(!cpuExecutor.awaitTermination(waitTimeForTermination, TimeUnit.SECONDS)) {
                 cpuExecutor.shutdownNow();
             }
         } catch (InterruptedException ie) {
@@ -160,6 +180,13 @@ public class Crawler {
             cpuExecutor.close();
         }
 
-        writeIndexToFile(tokenByDocs, LOGGER);
+        try {
+            String outputFile = Optional.ofNullable(System.getenv("INVERSE_INDEX_OUTPUT_FILE"))
+                    .orElse("inverted-index-debug.txt");
+            Files.createDirectories(Paths.get("program_output"));
+            writeIndexToFile(tokenByDocs, Paths.get("program_output", outputFile));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

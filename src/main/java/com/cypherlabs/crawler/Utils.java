@@ -9,12 +9,27 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import org. slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.tartarus.snowball.ext.EnglishStemmer;
 
 public class Utils {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Utils.class);
+
+    static List<Url> seedUrls() {
+        String seedEnv = System.getenv("SEED_URLS");
+        if (seedEnv == null || seedEnv.isBlank()) {
+            throw new IllegalStateException("SEED_URLS env variable is needed, but not available.");
+        }
+
+        return Arrays.stream(seedEnv.trim().split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .map(Url::new)
+                .toList();
+    }
 
     static Document fetchDocument(Url url) throws IOException {
         return Jsoup.connect(url.address())
@@ -50,10 +65,8 @@ public class Utils {
         tokens.forEach(token -> tokenByDocs.computeIfAbsent(token, _ -> new HashSet<>()).add(url));
     }
 
-    static void writeIndexToFile(Map<Token, Set<Url>> tokenByDocs, Logger LOGGER){
-        Path outputPath = Paths.get("program_output", "inverted_index.txt");
-        try (BufferedWriter writer = Files.newBufferedWriter(outputPath)) {
-            tokenByDocs.forEach((token, urls) -> {
+    static void writeIndexToFile(Map<Token, Set<Url>> tokenByDocs, Path outputPath){
+        try (BufferedWriter writer = Files.newBufferedWriter(outputPath)) {tokenByDocs.forEach((token, urls) -> {
                 try {
                     writer.write("Token: " + token + "\n");
                     for (Url url : urls) {

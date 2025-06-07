@@ -36,6 +36,22 @@
             <artifactId>lucene-analyzers-common</artifactId>
             <version>8.11.4</version>
         </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-api -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.13.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.nanohttpd/nanohttpd -->
+        <dependency>
+            <groupId>org.nanohttpd</groupId>
+            <artifactId>nanohttpd</artifactId>
+            <version>2.3.0</version>
+            <scope>runtime</scope>
+        </dependency>
     </dependencies>
 
 
