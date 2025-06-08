@@ -2,6 +2,9 @@ package com.cypherlabs.crawler;
 
 
 import org.jsoup.nodes.Document;
+import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -9,10 +12,6 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import org.jsoup.select.Elements;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import static com.cypherlabs.crawler.Utils.*;
 
@@ -160,7 +159,7 @@ public class Crawler {
 
             if (done) break;
         }
-        LOGGER.debug("Work completed....");
+        LOGGER.debug("Crawling completed....");
 
         ioExecutor.shutdown();
         cpuExecutor.shutdown();
@@ -182,10 +181,8 @@ public class Crawler {
         }
 
         try {
-            String outputFile = Optional.ofNullable(System.getenv("INVERSE_INDEX_OUTPUT_FILE"))
-                    .orElse("inverted-index-debug.txt");
             Files.createDirectories(Paths.get("program_output"));
-            writeIndexToFile(tokenByDocs, Paths.get("program_output", outputFile));
+            writeIndex(tokenByDocs, Format.BINARY);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

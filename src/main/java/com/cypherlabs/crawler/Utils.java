@@ -1,18 +1,18 @@
 package com.cypherlabs.crawler;
 
+import com.cypherlabs.io.IndexWriter;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
-
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.*;
-import org. slf4j.Logger;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tartarus.snowball.ext.EnglishStemmer;
+
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
 public class Utils {
 
@@ -65,22 +65,6 @@ public class Utils {
         tokens.forEach(token -> tokenByDocs.computeIfAbsent(token, _ -> new HashSet<>()).add(url));
     }
 
-    static void writeIndexToFile(Map<Token, Set<Url>> tokenByDocs, Path outputPath){
-        try (BufferedWriter writer = Files.newBufferedWriter(outputPath)) {tokenByDocs.forEach((token, urls) -> {
-                try {
-                    writer.write("Token: " + token + "\n");
-                    for (Url url : urls) {
-                        writer.write("------Url: " + url + "-----\n");
-                    }
-                } catch (IOException e) {
-                    throw new UncheckedIOException(e);
-                }
-            });
-        } catch (IOException e) {
-            LOGGER.error("Failed to write inverted index to file", e);
-        }
-    }
-
     public static String stem(String word) {
         EnglishStemmer stemmer = new EnglishStemmer();
         stemmer.setCurrent(word);
@@ -89,5 +73,21 @@ public class Utils {
         }
 
         return word;
+    }
+
+    public static void writeIndex(Map<Token, Set<Url>> tokenByDocs, Format format) throws IOException {
+        switch(format) {
+            case TXT -> IndexWriter.writeIndexToTextFile(tokenByDocs, Paths.get("program_output", indexOutputFileName()+".txt"));
+            case BINARY -> IndexWriter.writeIndexToBinaryFile(tokenByDocs, Paths.get("program_output", indexOutputFileName()+".index"));
+            default ->  LOGGER.error("Unsupported index file format");
+        }
+    }
+
+    private static String indexOutputFileName() {
+        String outputFileBaseName = Optional.ofNullable(System.getenv("INVERSE_INDEX_OUTPUT_FILE"))
+                .orElse("inverted-index-debug");
+        String timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+
+        return outputFileBaseName + "_" + timeStamp;
     }
 }
