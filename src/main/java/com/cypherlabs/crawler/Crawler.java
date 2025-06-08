@@ -1,6 +1,7 @@
 package com.cypherlabs.crawler;
 
 
+import com.cypherlabs.storage.UrlDocIdDictionary;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 import org.slf4j.Logger;
@@ -20,7 +21,8 @@ public class Crawler {
     private static final Logger LOGGER = LoggerFactory.getLogger(Crawler.class);
 
     private final List<Url> seedUrls;
-    private final Map<Token, Set<Url>> tokenByDocs = new ConcurrentHashMap<>();
+    private final Map<Token, Set<Integer>> tokenByDocs = new ConcurrentHashMap<>();
+    private final UrlDocIdDictionary urlDocIdDict = new UrlDocIdDictionary();
     private final Set<Url> alreadyVisited = ConcurrentHashMap.newKeySet();
     private final Map<Url, Integer> urlByRetryCount = new HashMap<>();
     static final int RETRY_ATTEMPTS = 3;
@@ -38,7 +40,7 @@ public class Crawler {
         this.seedUrls = seedurls;
     }
 
-    public Map<Token, Set<Url>> getTokenByDocs() {
+    public Map<Token, Set<Integer>> getTokenByDocs() {
         return this.tokenByDocs;
     }
 
@@ -112,10 +114,14 @@ public class Crawler {
                     .map(token -> new Token(stem(token.key())))
                     .distinct()
                     .toList();
-            updateIndex(stemmedTokens, url, tokenByDocs);
+            updateIndex(stemmedTokens, tokenByDocs, urlDocIdDict.addIfAbsent(url));
             activeDocumentProcessingCounter.decrementAndGet();
             LOGGER.debug("Number of documents under processing: {}", activeDocumentProcessingCounter.get());
         });
+    }
+
+    public UrlDocIdDictionary getUrlDocIdDict() {
+        return this.urlDocIdDict;
     }
 
     void crawl() {

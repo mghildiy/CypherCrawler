@@ -1,11 +1,13 @@
 package com.cypherlabs.io;
 
 import com.cypherlabs.crawler.Token;
-import com.cypherlabs.crawler.Url;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.DataOutputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -18,7 +20,7 @@ public class IndexWriter {
     // Magic number for "Cyph"
     private static final int MAGIC_NUMBER = 0x43797068;
 
-    public static void writeIndexToBinaryFile(Map<Token, Set<Url>> invertedIndex, Path outputPath) throws IOException {
+    public static void writeIndexToBinaryFile(Map<Token, Set<Integer>> invertedIndex, Path outputPath) throws IOException {
         try (DataOutputStream out = new DataOutputStream(new FileOutputStream(outputPath.toFile()))) {
 
             // Write magic number
@@ -27,30 +29,30 @@ public class IndexWriter {
             // Write number of tokens
             out.writeInt(invertedIndex.size());
 
-            for (Map.Entry<Token, Set<Url>> entry : invertedIndex.entrySet()) {
+            for (Map.Entry<Token, Set<Integer>> entry : invertedIndex.entrySet()) {
                 Token token = entry.getKey();
-                Set<Url> urls = entry.getValue();
+                Set<Integer> docIds = entry.getValue();
 
                 // Write token(it would first write length of string, adn then actual string)
                 out.writeUTF(token.key());
 
-                // Write number of URLs
-                out.writeInt(urls.size());
+                // Write number of docs ids
+                out.writeInt(docIds.size());
 
                 // Write each URL
-                for (Url url : urls) {
-                    out.writeUTF(url.address());
+                for (Integer docId : docIds) {
+                    out.writeInt(docId);
                 }
             }
         }
     }
 
-    public static void writeIndexToTextFile(Map<Token, Set<Url>> invertedIndex, Path outputPath) throws IOException {
+    public static void writeIndexToTextFile(Map<Token, Set<Integer>> invertedIndex, Path outputPath) throws IOException {
         try (BufferedWriter writer = Files.newBufferedWriter(outputPath)) {
-            for(Map.Entry<Token, Set<Url>> entry : invertedIndex.entrySet()) {
+            for(Map.Entry<Token, Set<Integer>> entry : invertedIndex.entrySet()) {
                 writer.write("Token: " + entry.getKey() + "\n");
-                for (Url url : entry.getValue()) {
-                    writer.write("------Url: " + url + "-----\n");
+                for (Integer docId : entry.getValue()) {
+                    writer.write("------DocId: " + docId + "-----\n");
                 }
             }
         }

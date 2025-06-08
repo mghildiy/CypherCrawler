@@ -61,8 +61,9 @@ public class Utils {
                 .toList();
     }
 
-    static void updateIndex(List<Token> tokens, Url url, Map<Token, Set<Url>> tokenByDocs) {
-        tokens.forEach(token -> tokenByDocs.computeIfAbsent(token, _ -> new HashSet<>()).add(url));
+    static void updateIndex(List<Token> tokens, Map<Token, Set<Integer>> tokenByDocs
+            , int docId) {
+        tokens.forEach(token -> tokenByDocs.computeIfAbsent(token, _ -> new HashSet<>()).add(docId));
     }
 
     public static String stem(String word) {
@@ -75,7 +76,7 @@ public class Utils {
         return word;
     }
 
-    public static void writeIndex(Map<Token, Set<Url>> tokenByDocs, Format format) throws IOException {
+    public static void writeIndex(Map<Token, Set<Integer>> tokenByDocs, Format format) throws IOException {
         switch(format) {
             case TXT -> IndexWriter.writeIndexToTextFile(tokenByDocs, Paths.get("program_output", indexOutputFileName()+".txt"));
             case BINARY -> IndexWriter.writeIndexToBinaryFile(tokenByDocs, Paths.get("program_output", indexOutputFileName()+".index"));

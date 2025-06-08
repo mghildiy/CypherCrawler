@@ -1,5 +1,6 @@
 package com.cypherlabs.crawler;
 
+import com.cypherlabs.storage.UrlDocIdDictionary;
 import fi.iki.elonen.NanoHTTPD;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -12,10 +13,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -83,7 +82,7 @@ public class CrawlerIntegrationTest {
         crawler.crawl();
 
         // validate
-        Map<Token, Set<Url>> tokenByDocs = crawler.getTokenByDocs();
+        Map<Token, Set<Integer>> tokenByDocs = crawler.getTokenByDocs();
 
         // 1) Check that some expected tokens exist
         assertTrue(tokenByDocs.containsKey(new Token("welcom")), "Token 'welcome' should be indexed");
@@ -94,12 +93,18 @@ public class CrawlerIntegrationTest {
         assertFalse(tokenByDocs.containsKey(new Token("running")), "Token 'running' should not be indexed");
 
         // 3) Check URLs linked to token "run" includes page3.html
-        Set<Url> runUrls = tokenByDocs.get(new Token("run"));
+        UrlDocIdDictionary urlDocIdDict = crawler.getUrlDocIdDict();
+        Set<Url> runUrls = tokenByDocs.get(new Token("run"))
+                .stream()
+                .map(docId -> urlDocIdDict.getUrl(docId))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toCollection(HashSet::new));
         assertTrue(runUrls.stream().anyMatch(u -> u.address().contains("page3.html")), "Token 'run' should index page3.html");
 
         // 4) Optionally check that all pages are indexed (page1, page2, page3)
         Set<String> allIndexedUrls = new HashSet<>();
-        tokenByDocs.values().forEach(urlSet -> urlSet.forEach(url -> allIndexedUrls.add(url.address())));
+        tokenByDocs.values().forEach(docIdSet -> docIdSet.forEach(docId -> allIndexedUrls.add(urlDocIdDict.getUrl(docId).get().address())));
         assertTrue(allIndexedUrls.stream().anyMatch(u -> u.contains("page1.html")), "page1.html should be indexed");
         assertTrue(allIndexedUrls.stream().anyMatch(u -> u.contains("page2.html")), "page2.html should be indexed");
         assertTrue(allIndexedUrls.stream().anyMatch(u -> u.contains("page3.html")), "page3.html should be indexed");
