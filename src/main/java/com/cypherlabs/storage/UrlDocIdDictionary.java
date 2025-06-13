@@ -21,6 +21,10 @@ public class UrlDocIdDictionary {
         });
     }
 
+    public Optional<Integer> getDocId(Url url) {
+        return Optional.ofNullable(urlByDocIdDict.get(url));
+    }
+
     public synchronized Optional<Url> getUrl(int docId) {
         if (docId >= 0 && docId < docIdToUrlList.size()) {
             return Optional.of(docIdToUrlList.get(docId));

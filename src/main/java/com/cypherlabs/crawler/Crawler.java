@@ -188,7 +188,7 @@ public class Crawler {
 
         try {
             Files.createDirectories(Paths.get("program_output"));
-            writeIndex(tokenByDocs, Format.BINARY);
+            writeIndex(tokenByDocs, Format.valueOf(Optional.ofNullable(System.getenv("INDEX_FILE_FORMAT")).orElse("TXT")));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

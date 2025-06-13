@@ -23,6 +23,12 @@ public class CrawlerIntegrationTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CrawlerIntegrationTest.class);
 
+    private static String ERROR_IN_NUM_DOCS_FOR_URL = "Token %s must have %d doc ids";
+
+    private static String  NO_URL_FOUND_FOR_DOC = "No URL found for doc ID %d";
+
+    private static String  WRONG_URL_FOR_TOKEN = "Wrong URL mapped to token %s";
+
     static class TestFileServer extends NanoHTTPD {
         private final Path baseDir;
 
@@ -108,6 +114,58 @@ public class CrawlerIntegrationTest {
         assertTrue(allIndexedUrls.stream().anyMatch(u -> u.contains("page1.html")), "page1.html should be indexed");
         assertTrue(allIndexedUrls.stream().anyMatch(u -> u.contains("page2.html")), "page2.html should be indexed");
         assertTrue(allIndexedUrls.stream().anyMatch(u -> u.contains("page3.html")), "page3.html should be indexed");
+
+        // 5) Check tokens are mapped to correct urls
+        Url page1 = new Url("http://localhost:8080/page1.html");
+        Url page2 = new Url("http://localhost:8080/page2.html");
+        Url page3 = new Url("http://localhost:8080/page3.html");
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "here", 1, List.of(page2));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "some", 1, List.of(page2));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "for", 1, List.of(page1));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "back", 1, List.of(page3));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "run", 1, List.of(page3));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "and", 1, List.of(page3));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "text", 1, List.of(page2));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "has", 1, List.of(page3));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "anoth", 1, List.of(page2));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "test", 3, List.of(page1, page2, page3));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "last", 1, List.of(page3));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "like", 1, List.of(page3));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "this", 2, List.of(page1, page3));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "go", 2, List.of(page1, page2));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "is", 1, List.of(page1));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "token", 1, List.of(page2));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "the", 1, List.of(page1));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "welcom", 1, List.of(page1));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "with", 1, List.of(page2));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "crawler", 1, List.of(page1));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "to", 3, List.of(page1, page2, page3));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "page", 3, List.of(page1, page2, page3));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "word", 1, List.of(page3));
+        checkTokenToUrlMapping(tokenByDocs, urlDocIdDict, "stem", 1, List.of(page3));
+    }
+
+    static private void checkTokenToUrlMapping(Map<Token, Set<Integer>> tokenByDocs, UrlDocIdDictionary urlDocIdDict,
+                                               String tokenKey, int numDocsExpected,
+                                               List<Url> urlsExpected) {
+        Token token = new Token(tokenKey);
+        assertTrue(tokenByDocs.get(token).size() == numDocsExpected, wrongDocCount(tokenKey, numDocsExpected));
+        tokenByDocs.get(token).forEach(docId -> {
+            Url url = urlDocIdDict.getUrl(docId).orElseThrow(() -> new RuntimeException(missingUrl(docId)));
+            assertTrue(urlsExpected.contains(url), wrongUrlMapped(token.key()));
+        });
+    }
+
+    private static String wrongUrlMapped(String token) {
+        return String.format(WRONG_URL_FOR_TOKEN, token);
+    }
+
+    private static String missingUrl(int docId){
+        return String.format(NO_URL_FOUND_FOR_DOC, docId);
+    }
+
+    private static String wrongDocCount(String token, int numDocs) {
+        return String.format(ERROR_IN_NUM_DOCS_FOR_URL, token, numDocs);
     }
 
 }
