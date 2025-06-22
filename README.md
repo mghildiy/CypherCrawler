@@ -47,3 +47,15 @@ mvn clean install
 ```bash
 mvn test
 ```
+
+## Index structure
+
+- token_dict.bin(contains sorted tokens and their offsets in postings.bin)
+- postings.bin(contains compressed docids per token, delta+varint)
+- doc_table.bin(contains doc metadata for each docid, like url,title, path)
+- bloom.bin(bloom filter for given segment)
+- segment.meta
+
+## TODOs
+
+- STOP words

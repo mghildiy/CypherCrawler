@@ -11,7 +11,7 @@ public class UrlDocIdDictionary {
     private static final Logger LOGGER  = LoggerFactory.getLogger(UrlDocIdDictionary.class);
 
     private final Map<Url, Integer> urlByDocIdDict = new HashMap<>();
-    private final List<Url> docIdToUrlList = new ArrayList<>();
+    private final List<Url> docIdToUrlList = new ArrayList<>(); // list index is docid itself
 
     public synchronized int addIfAbsent(Url url) {
         return urlByDocIdDict.computeIfAbsent(url, u -> {
@@ -32,5 +32,13 @@ public class UrlDocIdDictionary {
             LOGGER.info("No corresponding URL found for doc ID: {}", docId);
             return Optional.empty();
         }
+    }
+
+    public List<Url> getAllUrlsInOrder() {
+        return Collections.unmodifiableList(docIdToUrlList);
+    }
+
+    public int size() {
+        return docIdToUrlList.size();
     }
 }
