@@ -3,20 +3,25 @@ package com.cypherlabs.io;
 import com.cypherlabs.crawler.Token;
 import com.cypherlabs.crawler.Url;
 import com.cypherlabs.storage.UrlDocIdDictionary;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
 public class IndexSegmentWriter {
+    private static final Logger LOGGER = LoggerFactory.getLogger(IndexSegmentWriter.class);
 
     public static void writeSegment(Map<Token, Set<Integer>> tokenByDocs, UrlDocIdDictionary urlDict, Path segmentDir) throws IOException {
         Files.createDirectories(segmentDir);
         Map<Token, Long> tokenByOffSet =  writePostings(tokenByDocs, segmentDir.resolve("postings.bin"));
-        writeTokenDictionary(tokenByOffSet, segmentDir.resolve("token_dict.bin"));
+        writeSortedTokenDictionary(tokenByOffSet, segmentDir.resolve("token_dict.bin"));
+        writeFixedWidthTokenDictionary(tokenByOffSet, segmentDir.resolve("token_dict_fixedwidth.bin"), 64);
         writeDocTable(urlDict, segmentDir.resolve("doc_table.bin"));
     }
 
@@ -45,10 +50,30 @@ public class IndexSegmentWriter {
         return tokenByOffSet;
     }
 
-    private static void writeTokenDictionary(Map<Token, Long> tokenByOffSet, Path outputFile) throws IOException{
+    private static void writeSortedTokenDictionary(Map<Token, Long> tokenByOffSet, Path outputFile) throws IOException{
+        Map<Token, Long> sortedByToken = new TreeMap<>(tokenByOffSet);
         try(DataOutputStream opStr = new DataOutputStream(new FileOutputStream(outputFile.toFile()))) {
-            for(Map.Entry<Token, Long> entry : tokenByOffSet.entrySet()) {
+            for(Map.Entry<Token, Long> entry : sortedByToken.entrySet()) {
                 opStr.writeUTF(entry.getKey().key());
+                opStr.writeLong(entry.getValue());
+            }
+        }
+    }
+
+    private static void writeFixedWidthTokenDictionary(Map<Token, Long> tokenByOffSet, Path outputFile, int fixedTokenWidth) throws IOException {
+        Map<Token, Long> sortedByToken = new TreeMap<>(tokenByOffSet);
+        try(DataOutputStream opStr = new DataOutputStream(new FileOutputStream(outputFile.toFile()))) {
+            for(Map.Entry<Token, Long> entry : sortedByToken.entrySet()) {
+                String token = entry.getKey().key();
+                byte[] tokenBytes = token.getBytes(StandardCharsets.UTF_8);
+                if(tokenBytes.length > fixedTokenWidth) {
+                    LOGGER.error("Token {} is too big. Not saving it to token dictionary", token);
+                    continue;
+                }
+                opStr.write(tokenBytes);
+                for(int i = tokenBytes.length ; i < fixedTokenWidth; i++) {
+                    opStr.writeByte(0);
+                }
                 opStr.writeLong(entry.getValue());
             }
         }
