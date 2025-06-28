@@ -79,6 +79,11 @@ public class IndexSegmentWriter {
         return tokenByOffSet;
     }
 
+    private static void writeTokenAsTrie(Map<Token, Long> tokenByOffSet, Path outputFile) {
+        TokenTrie tokenTrie = new TokenTrie();
+        TrieNode trie = tokenTrie.createTrie(tokenByOffSet);
+    }
+
     /**
      * Writes the token dictionary to token_dict.bin using UTF encoding.
      * Good fit for use cases when file size is small enough to be loaded in memory entirely.
