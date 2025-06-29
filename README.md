@@ -50,65 +50,84 @@ mvn test
 
 ## Index structure
 ```
-Each **index segment** is stored as a directory containing the following files:
+Each index segment is stored as a directory containing the following files:
 
 token_dict.bin
-- **Purpose**: Stores each token and its byte offset in `postings.bin`
-- **Format**: Each entry is written using `writeUTF(token)` and `writeLong(offset)`
-- **Sorted**: Tokens are written in lexicographic order
-
-Example:
-"apple" → offset 0
-"banana" → offset 17
-"zebra" → offset 45
+   - Purpose: Stores each token and its byte offset in `postings.bin`
+   - **Format**: Each entry is written using `writeUTF(token)` and `writeLong(offset)`
+   - **Sorted**: Tokens are written in lexicographic order
+   
+   Example:
+   "apple" → offset 0
+   "banana" → offset 17
+   "zebra" → offset 45
+   
+   Three different versions implemented:
+   Sorted token dictionary
+   - Format: writeUTF(token) + writeLong(offset)
+   - Pros: Simple and compact.
+   - Read Strategy: Can support binary search (on-disk or in-memory).
+   - Use when: Token count is small or fully loaded in memory.
+   
+   Fixed token width dictionary:
+   - Format: fixed-length padded token + writeLong(offset)
+   - Pros: Supports direct indexed access (O(1)) with sampled index.
+   - Read Strategy: Fast on-disk lookup with seek(i * recordSize).
+   - Use when: Token set is large; avoid full in-memory load.
+   
+   Trie based dictionary:
+   - Format: Custom serialized trie of characters and offsets.
+   - Pros: Enables efficient prefix matching (e.g., autocompletion), space-sharing via common prefixes.
+   - Read Strategy: Tree traversal (either partially in-memory or hybrid memory+disk).
+   - Use when: Prefix search or memory-efficient token access is required.
 
 postings.bin
-- Purpose: Stores the list of document IDs for each token
-- Format:
-   - First: number of doc IDs (`int`)
-   - Then: doc IDs (`int[]`), optionally delta-encoded and varint-compressed
-
-Example:
-For token `"apple"` with doc IDs: `[3, 10, 12]`
-- Delta encoded: `[3, 7, 2]`
-- Varint encoded (hex): `03 07 02`
-
-Binary layout (hex):
-
-03 // number of docIDs
-03 07 02 // delta+varint encoded docIDs
-doc_table.bin
-- Purpose: Stores document metadata (e.g., URL) by doc ID
-- Format:
-   - First: total document count (`int`)
-   - Then: list of URLs, one per doc ID (`writeUTF(url)`)
-
-Example contents**:
-03 // number of docs
-"https://a.com" // doc ID 0
-"https://b.com" // doc ID 1
-"https://c.com" // doc ID 2
+   - Purpose: Stores the list of document IDs for each token
+   - Format:
+      - First: number of doc IDs (`int`)
+      - Then: doc IDs (`int[]`), optionally delta-encoded and varint-compressed
+   
+   Example:
+   For token `"apple"` with doc IDs: `[3, 10, 12]`
+   - Delta encoded: `[3, 7, 2]`
+   - Varint encoded (hex): `03 07 02`
+   
+   Binary layout (hex):
+   
+   03 // number of docIDs
+   03 07 02 // delta+varint encoded docIDs
+   doc_table.bin
+   - Purpose: Stores document metadata (e.g., URL) by doc ID
+   - Format:
+      - First: total document count (`int`)
+      - Then: list of URLs, one per doc ID (`writeUTF(url)`)
+   
+   Example contents:
+   03 // number of docs
+   "https://a.com" // doc ID 0
+   "https://b.com" // doc ID 1
+   "https://c.com" // doc ID 2
 
 bloom.bin
-- Purpose: Serialized Bloom filter of tokens in this segment
-- Usage: Fast exclusion of tokens not present in this segment
-- Format: Raw bytes
-
-Example (binary):
-[256-bit bloom filter]
-00000001 00000000 01000000 ...
+   - Purpose: Serialized Bloom filter of tokens in this segment
+   - Usage: Fast exclusion of tokens not present in this segment
+   - Format: Raw bytes
+   
+   Example (binary):
+   [256-bit bloom filter]
+   00000001 00000000 01000000 ...
 
 segment.meta
-- Purpose: Metadata about this segment (for coordination, merging, stats)
-- Format: JSON (recommended)
+   - Purpose: Metadata about this segment (for coordination, merging, stats)
+   - Format: JSON (recommended)
 
-Example json
-{
-  "segment_id": "segment_20250623_001",
-  "token_count": 12045,
-  "doc_count": 1200,
-  "created_at": "2025-06-23T10:30:00Z"
-}
+   Example json
+   {
+     "segment_id": "segment_20250623_001",
+     "token_count": 12045,
+     "doc_count": 1200,
+     "created_at": "2025-06-23T10:30:00Z"
+   }
 ```
 
 ## Read-side Flow
@@ -151,3 +170,4 @@ Given a search token, the engine performs the following steps:
 ## TODOs
 
 - STOP words
+- Non-english languages

@@ -21,14 +21,6 @@ public class TokenTrie {
     }
 
     private static Optional<TrieNode> getChildWithChar(TrieNode parent, char ch) {
-        /*for(TrieNode child : parent.getChildren()) {
-            if(child.getVal().charAt(0) == ch) {
-                return Optional.of(child);
-            }
-        }
-
-        return Optional.empty();*/
-
         return parent.getChild(ch);
     }
 
